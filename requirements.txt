@@ -20,7 +20,7 @@ cached-property==1.5.2
     #   py-evm
 cbor2==5.5.1
     # via vyper
-certifi==2023.11.17
+certifi==2024.7.4
     # via requests
 cfgv==3.4.0
     # via pre-commit
