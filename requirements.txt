@@ -20,7 +20,7 @@ cached-property==1.5.2
     #   py-evm
 cbor2==5.5.1
     # via vyper
-certifi==2023.11.17
+certifi==2024.7.4
     # via requests
 cfgv==3.4.0
     # via pre-commit
@@ -34,7 +34,7 @@ cytoolz==0.12.2
     # via eth-utils
 distlib==0.3.7
     # via virtualenv
-eth-abi==4.2.1
+eth-abi==5.0.1
     # via
     #   eth-account
     #   titanoboa
@@ -96,7 +96,7 @@ hypothesis==6.90.0
     # via titanoboa
 identify==2.5.32
     # via pre-commit
-idna==3.4
+idna==3.7
     # via requests
 importlib-metadata==6.8.0
     # via vyper
@@ -145,7 +145,7 @@ py-evm==0.8.0b1
     # via titanoboa
 pycodestyle==2.11.1
     # via flake8
-pycryptodome==3.19.0
+pycryptodome==3.19.1
     # via
     #   eth-hash
     #   eth-keyfile
@@ -168,7 +168,7 @@ pyyaml==6.0.1
     # via pre-commit
 regex==2023.10.3
     # via parsimonious
-requests==2.31.0
+requests==2.32.2
     # via titanoboa
 rich==13.7.0
     # via
@@ -217,7 +217,7 @@ wheel==0.41.3
     # via
     #   pip-tools
     #   vyper
-zipp==3.17.0
+zipp==3.19.1
     # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
