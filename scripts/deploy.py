@@ -8,16 +8,16 @@ Usage for prod mode:
     requires the URL and ACCOUNT environment variables to be set
 """
 import boa
-from constants import (
+from eth_abi import encode
+from rich import Console as RichConsole
+
+from scripts.deployment_utils import setup_environment
+from scripts.utils.constants import (
     ADDRESS_PROVIDER,
     CRYPTO_FACTORY_ADDRESS,
     STABLE_FACTORY_ADDRESS,
     STABLE_REGISTRY_ADDRESS,
 )
-from eth_abi import encode
-from rich import Console as RichConsole
-
-from scripts.deployment_utils import setup_environment
 
 
 def main():
@@ -36,9 +36,7 @@ def main():
     setup_environment(console)
 
     # deploy basepool registry:
-    base_pool_registry = boa.load(
-        "contracts/mainnet/registries/BasePoolRegistry.vy"
-    )
+    base_pool_registry = boa.load("contracts/registries/BasePoolRegistry.vy")
 
     # deploy crypto registry:
     console.log(
@@ -46,7 +44,7 @@ def main():
         encode(["address", "address"], [ADDRESS_PROVIDER, base_pool_registry]),
     )
     crypto_registry = boa.load(
-        "contracts/mainnet/registries/CryptoRegistryV1.vy",
+        "contracts/registries/CryptoRegistryV1.vy",
         ADDRESS_PROVIDER,
         base_pool_registry,
     )
@@ -57,7 +55,7 @@ def main():
         encode(["address"], [STABLE_REGISTRY_ADDRESS]).hex(),
     )
     boa.load(
-        "contracts/mainnet/registry_handlers/StableRegistryHandler.vy",
+        "contracts/registry_handlers/StableRegistryHandler.vy",
         STABLE_REGISTRY_ADDRESS,
     )
 
@@ -70,7 +68,7 @@ def main():
         ).hex(),
     )
     boa.load(
-        "contracts/mainnet/registry_handlers/StableFactoryHandler.vy",
+        "contracts/registry_handlers/StableFactoryHandler.vy",
         STABLE_FACTORY_ADDRESS,
         base_pool_registry,
     )
@@ -81,7 +79,7 @@ def main():
         encode(["address"], [crypto_registry]).hex(),
     )
     boa.load(
-        "contracts/mainnet/registry_handlers/CryptoRegistryHandler.vy",
+        "contracts/registry_handlers/CryptoRegistryHandler.vy",
         crypto_registry,
     )
 
@@ -94,7 +92,7 @@ def main():
         ).hex(),
     )
     boa.load(
-        "contracts/mainnet/registry_handlers/CryptoFactoryHandler.vy",
+        "contracts/registry_handlers/CryptoFactoryHandler.vy",
         CRYPTO_FACTORY_ADDRESS,
         base_pool_registry,
     )
@@ -104,7 +102,7 @@ def main():
         "MetaRegistry constructor arguments: ",
         encode(["address"], [ADDRESS_PROVIDER]).hex(),
     )
-    boa.load("contracts/mainnet/MetaRegistry.vy", ADDRESS_PROVIDER)
+    boa.load("contracts/MetaRegistry.vy", ADDRESS_PROVIDER)
 
 
 if __name__ == "__main__":

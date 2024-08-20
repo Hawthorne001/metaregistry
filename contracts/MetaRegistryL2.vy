@@ -1,7 +1,7 @@
-#pragma version ^0.3.7
+# pragma version 0.3.10
+# pragma evm-version paris
 """
-@title Curve Meta Registry
-@license MIT
+@title CurveMetaRegistry
 """
 
 # ---- interfaces ---- #
@@ -21,7 +21,6 @@ interface RegistryHandler:
     def get_coin_indices(_pool: address, _from: address, _to: address) -> (int128, int128, bool): view
     def get_decimals(_pool: address) -> uint256[MAX_COINS]: view
     def get_fees(_pool: address) -> uint256[10]: view
-    def get_gauges(_pool: address) -> (address[10], int128[10]): view
     def get_lp_token(_pool: address) -> address: view
     def get_n_coins(_pool: address) -> uint256: view
     def get_n_underlying_coins(_pool: address) -> uint256: view
@@ -38,6 +37,9 @@ interface RegistryHandler:
     def pool_list(_index: uint256) -> address: view
     def get_virtual_price_from_lp_token(_addr: address) -> uint256: view
     def base_registry() -> address: view
+
+interface GaugeFactory:
+    def get_gauge_from_lp_token(_lp_token: address) -> address: view
 
 
 # ---- events ---- #
@@ -57,19 +59,22 @@ ADMIN_ACTIONS_DELAY: constant(uint256) = 3 * 86400
 
 
 # ---- storage variables ---- #
-address_provider: public(AddressProvider)
-owner: public(address)
+admin: public(address)
+future_admin: public(address)
 
 # get registry/registry_handler by index, index starts at 0:
 get_registry: public(HashMap[uint256, address])
 registry_length: public(uint256)
+gauge_factory: public(GaugeFactory)
+gauge_type: public(int128)
 
 
 # ---- constructor ---- #
 @external
-def __init__(_address_provider: address):
-    self.address_provider = AddressProvider(_address_provider)
-    self.owner = AddressProvider(_address_provider).admin()
+def __init__(_gauge_factory: address, _gauge_type: int128):
+    self.admin = msg.sender
+    self.gauge_factory = GaugeFactory(_gauge_factory)
+    self.gauge_type = _gauge_type
 
 
 # ---- internal methods ---- #
@@ -133,7 +138,7 @@ def add_registry_handler(_registry_handler: address):
     @notice Adds a registry from the address provider entry
     @param _registry_handler Address of the handler contract
     """
-    assert msg.sender == self.owner  # dev: only owner
+    assert msg.sender == self.admin  # dev: only admin
 
     self._update_single_registry(self.registry_length, _registry_handler)
 
@@ -145,10 +150,17 @@ def update_registry_handler(_index: uint256, _registry_handler: address):
     @param _index The index of the registry in get_registry
     @param _registry_handler Address of the new handler contract
     """
-    assert msg.sender == self.owner  # dev: only owner
+    assert msg.sender == self.admin  # dev: only admin
     assert _index < self.registry_length
 
     self._update_single_registry(_index, _registry_handler)
+
+
+@external
+def update_gauge_data(_gauge_factory: address, _gauge_type: int128):
+    assert msg.sender == self.admin
+    self.gauge_factory = GaugeFactory(_gauge_factory)
+    self.gauge_type = _gauge_type
 
 
 # ---- view methods (API) of the contract ---- #
@@ -345,9 +357,8 @@ def get_gauge(_pool: address, gauge_idx: uint256 = 0, _handler_id: uint256 = 0) 
     @param _handler_id id of registry handler
     @return Address of gauge
     """
-    registry_handler: RegistryHandler = RegistryHandler(self._get_registry_handlers_from_pool(_pool)[_handler_id])
-    handler_output: address[10] = registry_handler.get_gauges(_pool)[0]
-    return handler_output[gauge_idx]
+    lp_token: address = RegistryHandler(self._get_registry_handlers_from_pool(_pool)[_handler_id]).get_lp_token(_pool)
+    return self.gauge_factory.get_gauge_from_lp_token(lp_token)
 
 
 @external
@@ -360,9 +371,7 @@ def get_gauge_type(_pool: address, gauge_idx: uint256 = 0, _handler_id: uint256 
     @param _handler_id id of registry handler
     @return Address of gauge
     """
-    registry_handler: RegistryHandler = RegistryHandler(self._get_registry_handlers_from_pool(_pool)[_handler_id])
-    handler_output: int128[10] = registry_handler.get_gauges(_pool)[1]
-    return handler_output[gauge_idx]
+    return self.gauge_type
 
 
 @external
@@ -559,3 +568,26 @@ def pool_list(_index: uint256) -> address:
             return RegistryHandler(handler).pool_list(_index - pools_skip)
         pools_skip += count
     return empty(address)
+
+
+@external
+def commit_transfer_ownership(_addr: address):
+    """
+    @notice Transfer ownership of this contract to `addr`
+    @param _addr Address of the new owner
+    """
+    assert msg.sender == self.admin  # dev: admin only
+    self.future_admin = _addr
+
+
+@external
+def accept_transfer_ownership():
+    """
+    @notice Accept a pending ownership transfer
+    @dev Only callable by the new owner
+    """
+    _admin: address = self.future_admin
+    assert msg.sender == _admin  # dev: future admin only
+
+    self.admin = _admin
+    self.future_admin = empty(address)

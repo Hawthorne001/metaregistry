@@ -6,8 +6,8 @@ from boa.vyper.contract import VyperContract
 from eth.codecs.abi.exceptions import DecodeError as ABIDecodeError
 from eth_account.signers.local import LocalAccount
 
-from scripts.constants import BASE_DIR, ZERO_ADDRESS
 from scripts.deployment_utils import get_deployed_contract
+from scripts.utils.constants import BASE_DIR, ZERO_ADDRESS
 
 
 def get_contract_pools(contract_name: str, address: str) -> list[str]:
@@ -27,9 +27,7 @@ def deploy_contract(
     directory: str = ".",
     **kwargs,
 ) -> VyperContract:
-    file_name = path.join(
-        BASE_DIR, f"contracts/mainnet/{directory}/{contract}.vy"
-    )
+    file_name = path.join(BASE_DIR, f"contracts/{directory}/{contract}.vy")
     with boa.env.sender(sender):
         return boa.load(file_name, *args, **kwargs)
 

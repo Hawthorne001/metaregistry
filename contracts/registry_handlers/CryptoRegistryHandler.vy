@@ -1,24 +1,26 @@
-#pragma version ^0.3.7
+# pragma version 0.3.10
+# pragma evm-version paris
 """
-@title Curve Registry Handler for v1 Registry
+@title Curve Registry Handler for v2 Crypto Registry
 @license MIT
 """
-# ---- interface ---- #
+
+# ---- interfaces --- #
 interface BaseRegistry:
     def find_pool_for_coins(_from: address, _to: address, i: uint256 = 0) -> address: view
     def get_admin_balances(_pool: address) -> uint256[MAX_COINS]: view
-    def get_A(_pool: address) -> uint256: view
     def get_balances(_pool: address) -> uint256[MAX_COINS]: view
+    def get_base_pool(_pool: address) -> address: view
     def get_coins(_pool: address) -> address[MAX_COINS]: view
     def get_coin_indices(_pool: address, _from: address, _to: address) -> (int128, int128, bool): view
     def get_decimals(_pool: address) -> uint256[MAX_COINS]: view
-    def get_fees(_pool: address) -> uint256[2]: view
+    def get_fees(_pool: address) -> uint256[4]: view
     def get_gauges(_pool: address) -> (address[10], int128[10]): view
     def get_lp_token(_pool: address) -> address: view
-    def get_n_coins(_pool: address) -> uint256[2]: view
-    def get_pool_asset_type(_pool: address) -> uint256: view
+    def get_n_coins(_pool: address) -> uint256: view
     def get_pool_from_lp_token(_lp_token: address) -> address: view
     def get_pool_name(_pool: address) -> String[64]: view
+    def get_n_underlying_coins(_pool: address) -> uint256: view
     def get_underlying_balances(_pool: address) -> uint256[MAX_COINS]: view
     def get_underlying_coins(_pool: address) -> address[MAX_COINS]: view
     def get_underlying_decimals(_pool: address) -> uint256[MAX_COINS]: view
@@ -29,10 +31,27 @@ interface BaseRegistry:
 
 
 interface CurvePool:
-    def base_pool() -> address: view
+    def adjustment_step() -> uint256: view
+    def admin_fee() -> uint256: view
+    def allowed_extra_profit() -> uint256: view
+    def A() -> uint256: view
+    def D() -> uint256: view
+    def fee() -> uint256: view
+    def fee_gamma() -> uint256: view
+    def gamma() -> uint256: view
+    def get_virtual_price() -> uint256: view
+    def ma_half_time() -> uint256: view
+    def mid_fee() -> uint256: view
+    def out_fee() -> uint256: view
+    def virtual_price() -> uint256: view
+    def xcp_profit() -> uint256: view
+    def xcp_profit_a() -> uint256: view
+
 
 interface ERC20:
-    def decimals() -> uint256: view
+    def name() -> String[64]: view
+    def balanceOf(_addr: address) -> uint256: view
+    def totalSupply() -> uint256: view
 
 
 interface MetaRegistry:
@@ -41,7 +60,6 @@ interface MetaRegistry:
 
 # ---- constants ---- #
 MAX_COINS: constant(uint256) = 8
-
 
 # ---- storage variables ---- #
 base_registry: public(BaseRegistry)
@@ -54,16 +72,12 @@ def __init__(_base_registry: address):
 
 
 # ---- internal methods ---- #
-@internal
-@view
-def _get_n_coins(_pool: address) -> uint256:
-    return self.base_registry.get_n_coins(_pool)[0]
 
 
 @internal
 @view
-def _is_meta(_pool: address) -> bool:
-    return self.base_registry.is_meta(_pool)
+def _get_lp_token(_pool: address) -> address:
+    return self.base_registry.get_lp_token(_pool)
 
 
 # ---- view methods (API) of the contract ---- #
@@ -72,10 +86,10 @@ def _is_meta(_pool: address) -> bool:
 def find_pool_for_coins(_from: address, _to: address, i: uint256 = 0) -> address:
     """
     @notice Find the pool that has the given coins.
-    @param _from address of coin.
-    @param _to address of coin.
-    @param i index of list of found pools to return
-    @return address of pool at index `i` of pools that hold the two coins
+    @param _from The address of the coin holder.
+    @param _to The address of the coin holder.
+    @param i The index of the pool in the list of pools containing the two coins.
+    @return The address of the pool.
     """
     return self.base_registry.find_pool_for_coins(_from, _to, i)
 
@@ -85,8 +99,8 @@ def find_pool_for_coins(_from: address, _to: address, i: uint256 = 0) -> address
 def get_admin_balances(_pool: address) -> uint256[MAX_COINS]:
     """
     @notice Get the admin balances of the given pool.
-    @param _pool address of pool.
-    @return admin balances of the pool.
+    @param _pool The address of the pool.
+    @return The admin balances of the pool.
     """
     return self.base_registry.get_admin_balances(_pool)
 
@@ -96,8 +110,8 @@ def get_admin_balances(_pool: address) -> uint256[MAX_COINS]:
 def get_balances(_pool: address) -> uint256[MAX_COINS]:
     """
     @notice Get the balances of the given pool.
-    @param _pool address of pool.
-    @return balances of the pool.
+    @param _pool The address of the pool.
+    @return The balances of the pool.
     """
     return self.base_registry.get_balances(_pool)
 
@@ -107,24 +121,21 @@ def get_balances(_pool: address) -> uint256[MAX_COINS]:
 def get_base_pool(_pool: address) -> address:
     """
     @notice Get the base pool of the given pool.
-    @param _pool address of pool.
-    @return base pool of the pool.
+    @param _pool The address of the pool.
+    @return The base pool of the pool.
     """
-    if not(self._is_meta(_pool)):
-        return empty(address)
-    return self.base_registry.get_pool_from_lp_token(self.base_registry.get_coins(_pool)[1])
+    return self.base_registry.get_base_pool(_pool)
 
 
 @view
 @external
 def get_coin_indices(_pool: address, _from: address, _to: address) -> (int128, int128, bool):
     """
-    @notice Get the indices of the given coins in the given pool.
-    @param _pool address of pool.
-    @param _from address of coin.
-    @param _to address of coin.
-    @return index of _from, index of _to, bool indicating whether the
-            coins are in an underlying market
+    @notice Get the indices of the coins in the given pool.
+    @param _pool The address of the pool.
+    @param _from The _from coin address.
+    @param _to The _to coin address.
+    @return The indices of the coins in the pool.
     """
     return self.base_registry.get_coin_indices(_pool, _from, _to)
 
@@ -134,8 +145,8 @@ def get_coin_indices(_pool: address, _from: address, _to: address) -> (int128, i
 def get_coins(_pool: address) -> address[MAX_COINS]:
     """
     @notice Get the coins of the given pool.
-    @param _pool address of pool.
-    @return coins of the pool.
+    @param _pool The address of the pool.
+    @return address[MAX_COINS] list of coins in the pool.
     """
     return self.base_registry.get_coins(_pool)
 
@@ -144,9 +155,9 @@ def get_coins(_pool: address) -> address[MAX_COINS]:
 @view
 def get_decimals(_pool: address) -> uint256[MAX_COINS]:
     """
-    @notice Get the decimals of the coins in given pool.
-    @param _pool address of pool.
-    @return decimals of the coins in the pool.
+    @notice Get the decimals of the given pool.
+    @param _pool The address of the pool.
+    @return uint256[MAX_COINS] list of decimals of the coins in the pool.
     """
     return self.base_registry.get_decimals(_pool)
 
@@ -156,12 +167,15 @@ def get_decimals(_pool: address) -> uint256[MAX_COINS]:
 def get_fees(_pool: address) -> uint256[10]:
     """
     @notice Get the fees of the given pool.
-    @param _pool address of pool.
-    @return fees of the pool.
+    @param _pool The address of the pool.
+    @return Pool fee as uint256 with 1e10 precision
+        Admin fee as 1e10 percentage of pool fee
+        Mid fee
+        Out fee
     """
     fees: uint256[10] = empty(uint256[10])
-    pool_fees: uint256[2] = self.base_registry.get_fees(_pool)
-    for i in range(2):
+    pool_fees: uint256[4] = self.base_registry.get_fees(_pool)
+    for i in range(4):
         fees[i] = pool_fees[i]
     return fees
 
@@ -170,9 +184,9 @@ def get_fees(_pool: address) -> uint256[10]:
 @view
 def get_gauges(_pool: address) -> (address[10], int128[10]):
     """
-    @notice Get the gauges and gauge types of the given pool.
-    @param _pool address of pool.
-    @return gauges of the pool.
+    @notice Get the gauges and gauge_types for a given pool.
+    @param _pool The address of the pool.
+    @return The gauges of the pool.
     """
     return self.base_registry.get_gauges(_pool)
 
@@ -182,10 +196,10 @@ def get_gauges(_pool: address) -> (address[10], int128[10]):
 def get_lp_token(_pool: address) -> address:
     """
     @notice Get the LP token of the given pool.
-    @param _pool address of pool.
-    @return LP token of the pool.
+    @param _pool The address of the pool.
+    @return The LP token of the pool.
     """
-    return self.base_registry.get_lp_token(_pool)
+    return self._get_lp_token(_pool)
 
 
 @external
@@ -193,10 +207,10 @@ def get_lp_token(_pool: address) -> address:
 def get_n_coins(_pool: address) -> uint256:
     """
     @notice Get the number of coins in the given pool.
-    @param _pool address of pool.
-    @return number of coins in the pool.
+    @param _pool The address of the pool.
+    @return The number of coins in the pool.
     """
-    return self._get_n_coins(_pool)
+    return self.base_registry.get_n_coins(_pool)
 
 
 @external
@@ -204,22 +218,22 @@ def get_n_coins(_pool: address) -> uint256:
 def get_n_underlying_coins(_pool: address) -> uint256:
     """
     @notice Get the number of underlying coins in the given pool.
-    @param _pool address of pool.
-    @return number of underlying coins in the pool.
+    @param _pool The address of the pool.
+    @return The number of underlying coins in the pool.
     """
-    return self.base_registry.get_n_coins(_pool)[1]
+    return self.base_registry.get_n_underlying_coins(_pool)
 
 
 @external
 @view
 def get_pool_asset_type(_pool: address) -> uint256:
     """
-    @notice Get the asset type of coins in a given pool.
-    @dev 0 = USD, 1 = ETH, 2 = BTC, 3 = Other
-    @param _pool address of pool.
-    @return asset type of the pool.
+    @notice Get the asset type of the given pool.
+    @dev Returns 4: 0 = USD, 1 = ETH, 2 = BTC, 3 = Other
+    @param _pool The address of the pool.
+    @return The asset type of the pool.
     """
-    return self.base_registry.get_pool_asset_type(_pool)
+    return 4
 
 
 @external
@@ -227,8 +241,8 @@ def get_pool_asset_type(_pool: address) -> uint256:
 def get_pool_from_lp_token(_lp_token: address) -> address:
     """
     @notice Get the pool of the given LP token.
-    @param _lp_token address of LP token.
-    @return pool of the LP token.
+    @param _lp_token The address of the LP token.
+    @return The address of the pool.
     """
     return self.base_registry.get_pool_from_lp_token(_lp_token)
 
@@ -238,8 +252,8 @@ def get_pool_from_lp_token(_lp_token: address) -> address:
 def get_pool_name(_pool: address) -> String[64]:
     """
     @notice Get the name of the given pool.
-    @param _pool address of pool.
-    @return name of the pool.
+    @param _pool The address of the pool.
+    @return The name of the pool.
     """
     return self.base_registry.get_pool_name(_pool)
 
@@ -248,13 +262,21 @@ def get_pool_name(_pool: address) -> String[64]:
 @view
 def get_pool_params(_pool: address) -> uint256[20]:
     """
-    @notice Get the parameters of the given pool.
-    @param _pool address of pool.
-    @return parameters of the pool.
+    @notice returns pool params given a cryptopool address
+    @dev contains all settable parameter that alter the pool's performance
+    @dev only applicable for cryptopools
+    @param _pool Address of the pool for which data is being queried.
     """
-    stableswap_pool_params: uint256[20] = empty(uint256[20])
-    stableswap_pool_params[0] = self.base_registry.get_A(_pool)
-    return stableswap_pool_params
+
+    pool_params: uint256[20] = empty(uint256[20])
+    pool_params[0] = CurvePool(_pool).A()
+    pool_params[1] = CurvePool(_pool).D()
+    pool_params[2] = CurvePool(_pool).gamma()
+    pool_params[3] = CurvePool(_pool).allowed_extra_profit()
+    pool_params[4] = CurvePool(_pool).fee_gamma()
+    pool_params[5] = CurvePool(_pool).adjustment_step()
+    pool_params[6] = CurvePool(_pool).ma_half_time()
+    return pool_params
 
 
 @external
@@ -262,12 +284,9 @@ def get_pool_params(_pool: address) -> uint256[20]:
 def get_underlying_balances(_pool: address) -> uint256[MAX_COINS]:
     """
     @notice Get the underlying balances of the given pool.
-    @dev returns coin balances if pool is not a metapool
-    @param _pool address of pool.
-    @return underlying balances of the pool.
+    @param _pool The address of the pool.
+    @return The underlying balances of the pool.
     """
-    if not self._is_meta(_pool):
-        return self.base_registry.get_balances(_pool)
     return self.base_registry.get_underlying_balances(_pool)
 
 
@@ -276,10 +295,8 @@ def get_underlying_balances(_pool: address) -> uint256[MAX_COINS]:
 def get_underlying_coins(_pool: address) -> address[MAX_COINS]:
     """
     @notice Get the underlying coins of the given pool.
-    @dev For pools that do not lend, the base registry returns the
-         same value as `get_coins`
-    @param _pool address of pool.
-    @return underlying coins of the pool.
+    @param _pool The address of the pool.
+    @return The underlying coins of the pool.
     """
     return self.base_registry.get_underlying_coins(_pool)
 
@@ -288,20 +305,11 @@ def get_underlying_coins(_pool: address) -> address[MAX_COINS]:
 @view
 def get_underlying_decimals(_pool: address) -> uint256[MAX_COINS]:
     """
-    @notice Get the underlying decimals of coins in the given pool.
-    @param _pool address of pool.
-    @return underlying decimals of the coins in the pool.
+    @notice Get the underlying decimals of coins in a given pool.
+    @param _pool The address of the pool.
+    @return The underlying decimals of coins in the pool.
     """
-    coin_decimals: uint256[MAX_COINS] = self.base_registry.get_decimals(_pool)
-    underlying_coin_decimals: uint256[MAX_COINS] = self.base_registry.get_underlying_decimals(_pool)
-
-    # this is a check for cases where base_registry.get_underlying_decimals
-    # returns wrong values but base_registry.get_decimals is the right one:
-    for i in range(MAX_COINS):
-        if underlying_coin_decimals[i] == 0:
-            underlying_coin_decimals[i] = coin_decimals[i]
-
-    return underlying_coin_decimals
+    return self.base_registry.get_underlying_decimals(_pool)
 
 
 @external
@@ -309,8 +317,8 @@ def get_underlying_decimals(_pool: address) -> uint256[MAX_COINS]:
 def get_virtual_price_from_lp_token(_token: address) -> uint256:
     """
     @notice Get the virtual price of the given LP token.
-    @param _token address of LP token.
-    @return virtual price of the LP token.
+    @param _token The address of the LP token.
+    @return uint256 The virtual price of the LP token.
     """
     return self.base_registry.get_virtual_price_from_lp_token(_token)
 
@@ -319,11 +327,11 @@ def get_virtual_price_from_lp_token(_token: address) -> uint256:
 @view
 def is_meta(_pool: address) -> bool:
     """
-    @notice Check if the given pool is a metapool.
-    @param _pool address of pool.
-    @return true if the pool is a metapool.
+    @notice Check if the given pool is a meta pool.
+    @param _pool The address of the pool.
+    @return True if the pool is a meta pool, false otherwise.
     """
-    return self._is_meta(_pool)
+    return self.base_registry.is_meta(_pool)
 
 
 @external
@@ -334,7 +342,7 @@ def is_registered(_pool: address) -> bool:
     @param _pool The address of the pool
     @return A bool corresponding to whether the pool belongs or not
     """
-    return self._get_n_coins(_pool) > 0
+    return self.base_registry.get_n_coins(_pool) > 0
 
 
 @external
@@ -342,7 +350,7 @@ def is_registered(_pool: address) -> bool:
 def pool_count() -> uint256:
     """
     @notice Get the number of pools in the registry.
-    @return number of pools in the registry.
+    @return The number of pools in the registry.
     """
     return self.base_registry.pool_count()
 
@@ -352,7 +360,7 @@ def pool_count() -> uint256:
 def pool_list(_index: uint256) -> address:
     """
     @notice Get the address of the pool at the given index.
-    @param _index index of the pool.
-    @return address of the pool.
+    @param _index The index of the pool.
+    @return The address of the pool.
     """
     return self.base_registry.pool_list(_index)

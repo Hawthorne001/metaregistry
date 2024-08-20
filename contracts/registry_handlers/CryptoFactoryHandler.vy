@@ -1,4 +1,5 @@
-#pragma version ^0.3.7
+# pragma version 0.3.10
+# pragma evm-version paris
 """
 @title Curve Registry Handler for v2 Factory
 @license MIT
@@ -235,7 +236,7 @@ def _get_gauge_type(_gauge: address) -> int128:
     success, response = raw_call(
         GAUGE_CONTROLLER,
         concat(
-            method_id("gauge_type(address)"),
+            method_id("gauge_types(address)"),
             convert(_gauge, bytes32),
         ),
         max_outsize=32,

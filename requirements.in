@@ -1,4 +1,5 @@
-titanoboa[forking-recommended] @ git+https://github.com/vyperlang/titanoboa@e85ab24
+titanoboa[forking-recommended]==0.1.10
+titanoboa-zksync==0.1.1
 black
 flake8
 isort
