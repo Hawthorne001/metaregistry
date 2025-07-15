@@ -11,54 +11,53 @@ from boa.network import NetworkEnv
 from eth_account import Account
 from rich.console import Console as RichConsole
 
-
 FIDDY_DEPLOYER = "0x2d12D0907A388811e3AA855A550F959501d303EE"
 ADDRESS_PROVIDER = (
     "0x5ffe7FB82894076ECB99A30D6A32e969e6e35E98"  # gets replaced for zksync
 )
 to_update = {
     "ethereum": {
-        2: '0x16C6521Dff6baB339122a0FE25a9116693265353',
-        4: '0xD16d5eC345Dd86Fb63C6a9C43c517210F1027914',
+        2: "0x16C6521Dff6baB339122a0FE25a9116693265353",
+        4: "0xD16d5eC345Dd86Fb63C6a9C43c517210F1027914",
     },
     "optimism": {
-        2: '0x0DCDED3545D565bA3B19E683431381007245d983',
+        2: "0x0DCDED3545D565bA3B19E683431381007245d983",
     },
     "gnosis": {
-        2: '0x0DCDED3545D565bA3B19E683431381007245d983',
+        2: "0x0DCDED3545D565bA3B19E683431381007245d983",
     },
     "polygon": {
-        2: '0x0DCDED3545D565bA3B19E683431381007245d983',
+        2: "0x0DCDED3545D565bA3B19E683431381007245d983",
     },
     "fantom": {
-        2: '0x0DCDED3545D565bA3B19E683431381007245d983',
+        2: "0x0DCDED3545D565bA3B19E683431381007245d983",
     },
     "kava": {
-        2: '0x0DCDED3545D565bA3B19E683431381007245d983',
+        2: "0x0DCDED3545D565bA3B19E683431381007245d983",
     },
     "arbitrum": {
-        2: '0x2191718CD32d02B8E60BAdFFeA33E4B5DD9A0A0D',
+        2: "0x2191718CD32d02B8E60BAdFFeA33E4B5DD9A0A0D",
     },
     "avalanche": {
-        2: '0x0DCDED3545D565bA3B19E683431381007245d983',
+        2: "0x0DCDED3545D565bA3B19E683431381007245d983",
     },
     "base": {
-        2: '0x4f37A9d177470499A2dD084621020b023fcffc1F',
+        2: "0x4f37A9d177470499A2dD084621020b023fcffc1F",
     },
     "bsc": {
-        2: '0xA72C85C258A81761433B4e8da60505Fe3Dd551CC',
+        2: "0xA72C85C258A81761433B4e8da60505Fe3Dd551CC",
     },
     "fraxtal": {
-        2: '0x9f2Fa7709B30c75047980a0d70A106728f0Ef2db',
+        2: "0x9f2Fa7709B30c75047980a0d70A106728f0Ef2db",
     },
     "xlayer": {
-        2: '0xBFab8ebc836E1c4D81837798FC076D219C9a1855',
+        2: "0xBFab8ebc836E1c4D81837798FC076D219C9a1855",
     },
     "mantle": {
-        2: '0x4f37A9d177470499A2dD084621020b023fcffc1F',
+        2: "0x4f37A9d177470499A2dD084621020b023fcffc1F",
     },
     "zksync": {
-        2: '0x7C915390e109CA66934f1eB285854375D1B127FA',
+        2: "0x7C915390e109CA66934f1eB285854375D1B127FA",
     },
 }
 
@@ -96,14 +95,14 @@ def main(network, fork, url):
 
     address_provider_obj = boa.load_partial("contracts/AddressProviderNG.vy")
     address_provider = address_provider_obj.at(ADDRESS_PROVIDER)
-    
+
     console.log(f"For network: {network}")
 
     # set up address provider
     network_update = to_update[network]
     if not network_update:
         return
-    
+
     updating = False
     for key, value in network_update.items():
         current_value = address_provider.get_address(key)
@@ -119,15 +118,14 @@ def main(network, fork, url):
 
 
 if __name__ == "__main__":
-    
     fork = False
-    
-    for network in to_update.keys():
 
+    for network in to_update.keys():
         url = ""
 
         if network == "zksync":
             import boa_zksync
+
             network_url = "https://mainnet.era.zksync.io"
             ADDRESS_PROVIDER = "0x3934a3bB913E4a44316a89f5a83876B9C63e4F31"
         elif network == "fraxtal":

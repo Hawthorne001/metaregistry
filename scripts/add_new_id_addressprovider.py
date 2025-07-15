@@ -5,13 +5,13 @@
 #              Linea, Polygon zkEVM, Scroll, Fraxtal, Avalanche, Kava
 
 import os
+import sys
 
 import boa
 from boa.network import NetworkEnv
 from eth_account import Account
 from rich.console import Console as RichConsole
 
-import sys
 sys.path.append("./")
 
 from scripts.address_provider_constants import (

@@ -262,7 +262,7 @@ def main(network, fork, url):
     console.log("Deploying Metaregistry ...")
     gauge_factory = address_provider.get_address(20)  # 20 is for Gauge Factory
     gauge_type = GAUGE_TYPE[network]
-    
+
     deploy_mregistry = metaregistry_address == ZERO_ADDRESS
     deploy_mregistry = False
 
@@ -306,6 +306,7 @@ if __name__ == "__main__":
 
     if network == "zksync":
         import boa_zksync
+
         url = "https://mainnet.era.zksync.io"
         ADDRESS_PROVIDER = "0x3934a3bB913E4a44316a89f5a83876B9C63e4F31"
     elif network == "fraxtal":
